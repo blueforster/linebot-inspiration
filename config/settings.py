@@ -18,8 +18,6 @@ class Config:
     DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-change-this')
     
-    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
-    
     # Speech recognition settings
     SPEECH_LANGUAGE_CODE = 'zh-TW'
     SPEECH_ALTERNATIVE_LANGUAGE_CODES = ['en-US', 'zh-CN']

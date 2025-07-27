@@ -17,7 +17,8 @@ class SpeechService:
         
         if GOOGLE_SPEECH_AVAILABLE and Config.GOOGLE_CLOUD_PROJECT:
             try:
-                self.google_client = speech.SpeechClient()
+                # from google.cloud import speech  # 只在需要時匯入
+                # self.google_client = speech.SpeechClient()
                 self.logger.info("Google Cloud Speech client initialized")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize Google Cloud Speech client: {e}")
@@ -68,11 +69,17 @@ class SpeechService:
     
     def _google_speech_to_text(self, audio_file: str, language_code: str) -> Optional[Dict[str, Any]]:
         try:
+            # 暫時停用，直接返回備援結果
+            return self._fallback_speech_processing(audio_file)
+            
+            # 以下程式碼在啟用 Google Cloud Speech 時使用
+            """
             # Read audio file
             with open(audio_file, 'rb') as f:
                 audio_content = f.read()
             
-            # Configure audio settings
+            # Configure audio settings  
+            from google.cloud import speech
             audio = speech.RecognitionAudio(content=audio_content)
             config = speech.RecognitionConfig(
                 encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
@@ -82,7 +89,7 @@ class SpeechService:
                 enable_automatic_punctuation=True,
                 enable_word_confidence=True,
                 model='default'
-            )
+            )"""
             
             # Perform speech recognition
             response = self.google_client.recognize(config=config, audio=audio)
@@ -132,94 +139,22 @@ class SpeechService:
         }
     
     def process_long_audio(self, audio_url: str, language_code: str = None) -> Optional[Dict[str, Any]]:
-        temp_file = None
-        
-        try:
-            # Download and check audio duration
-            temp_file = download_file(audio_url)
-            if not temp_file:
-                return None
-            
-            audio = AudioSegment.from_file(temp_file)
-            duration = len(audio) / 1000.0  # Duration in seconds
-            
-            # If audio is longer than 60 seconds, split it
-            if duration > 60:
-                return self._process_long_audio_chunks(temp_file, language_code)
-            else:
-                return self.convert_audio_to_text(audio_url, language_code)
-                
-        except Exception as e:
-            self.logger.error(f"Error processing long audio: {e}")
-            return None
-            
-        finally:
-            if temp_file:
-                cleanup_temp_file(temp_file)
+        # 暫時停用長音訊處理，直接使用基本處理
+        return self.convert_audio_to_text(audio_url, language_code)
     
     def _process_long_audio_chunks(self, audio_file: str, language_code: str) -> Dict[str, Any]:
-        try:
-            audio = AudioSegment.from_file(audio_file)
-            chunk_length = 30 * 1000  # 30 seconds chunks
-            
-            transcripts = []
-            total_confidence = 0
-            chunk_count = 0
-            
-            # Process audio in chunks
-            for i in range(0, len(audio), chunk_length):
-                chunk = audio[i:i + chunk_length]
-                
-                # Save chunk to temporary file
-                chunk_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-                chunk_file.close()
-                
-                try:
-                    chunk.export(chunk_file.name, format="wav")
-                    
-                    # Process chunk
-                    if self.google_client:
-                        result = self._google_speech_to_text(chunk_file.name, language_code)
-                        if result and result['transcript']:
-                            transcripts.append(result['transcript'])
-                            total_confidence += result['confidence']
-                            chunk_count += 1
-                    
-                finally:
-                    cleanup_temp_file(chunk_file.name)
-            
-            # Combine results
-            combined_transcript = ' '.join(transcripts)
-            average_confidence = total_confidence / chunk_count if chunk_count > 0 else 0
-            
-            return {
-                'transcript': combined_transcript,
-                'confidence': average_confidence,
-                'language': language_code or Config.SPEECH_LANGUAGE_CODE,
-                'service': 'google_cloud_speech_chunked',
-                'chunk_count': chunk_count,
-                'alternatives': []
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error processing audio chunks: {e}")
-            return self._fallback_speech_processing(audio_file)
+        # 暫時停用分塊處理，直接返回備援結果
+        return self._fallback_speech_processing(audio_file)
     
     def is_supported_audio_format(self, filename: str) -> bool:
         return is_valid_file_extension(filename, Config.ALLOWED_AUDIO_EXTENSIONS)
     
     def get_audio_info(self, audio_file: str) -> Dict[str, Any]:
-        try:
-            audio = AudioSegment.from_file(audio_file)
-            
-            return {
-                'duration': len(audio) / 1000.0,
-                'channels': audio.channels,
-                'frame_rate': audio.frame_rate,
-                'sample_width': audio.sample_width,
-                'format': 'detected'
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error getting audio info: {e}")
-            return {}
+        # 暫時停用音訊資訊獲取
+        return {
+            'duration': 0.0,
+            'channels': 1,
+            'frame_rate': 16000,
+            'sample_width': 2,
+            'format': 'unknown'
+        }

@@ -125,11 +125,41 @@ def init_google_sheets():
             logger.error(f"Failed to parse Google credentials JSON: {e}")
             return
         
-        # Create credentials
-        credentials = Credentials.from_service_account_info(
-            cred_dict,
-            scopes=['https://www.googleapis.com/auth/spreadsheets']
-        )
+        # Create credentials - try different methods
+        credentials = None
+        try:
+            # Method 1: from_service_account_info
+            credentials = Credentials.from_service_account_info(
+                cred_dict,
+                scopes=['https://www.googleapis.com/auth/spreadsheets']
+            )
+            logger.info("Successfully created credentials using from_service_account_info")
+        except Exception as e:
+            logger.error(f"Method 1 failed: {e}")
+            
+            # Method 2: Write to temp file and use from_service_account_file
+            try:
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                    json.dump(cred_dict, f)
+                    temp_file_path = f.name
+                
+                credentials = Credentials.from_service_account_file(
+                    temp_file_path,
+                    scopes=['https://www.googleapis.com/auth/spreadsheets']
+                )
+                
+                # Clean up temp file
+                import os
+                os.unlink(temp_file_path)
+                logger.info("Successfully created credentials using temp file method")
+            except Exception as e2:
+                logger.error(f"Method 2 also failed: {e2}")
+                return
+        
+        if not credentials:
+            logger.error("Could not create Google credentials")
+            return
         
         # Connect to Google Sheets
         client = gspread.authorize(credentials)

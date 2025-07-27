@@ -1,5 +1,4 @@
 import gspread
-from google.auth.exceptions import DefaultCredentialsError
 from google.oauth2.service_account import Credentials
 from typing import List, Dict, Optional, Any
 import logging

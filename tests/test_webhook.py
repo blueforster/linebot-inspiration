@@ -1,8 +1,15 @@
 import pytest
 import json
+import os
 from unittest.mock import Mock, patch
 from app import create_app
 from app.models.message_model import MessageModel
+
+# 設定測試環境變數
+os.environ['LINE_CHANNEL_ACCESS_TOKEN'] = 'test_token'
+os.environ['LINE_CHANNEL_SECRET'] = 'test_secret'
+os.environ['GOOGLE_SHEET_ID'] = 'test_sheet_id'
+os.environ['FLASK_ENV'] = 'testing'
 
 @pytest.fixture
 def app():

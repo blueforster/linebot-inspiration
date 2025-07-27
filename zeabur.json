@@ -1,4 +1,4 @@
 {
   "app_type": "python",
-  "start_command": "python server.py"
+  "start_command": "gunicorn wsgi:app --bind 0.0.0.0:8080 --workers 1"
 }

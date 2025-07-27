@@ -48,16 +48,41 @@ def init_google_sheets():
         google_creds_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
         sheet_id = os.environ.get('GOOGLE_SHEET_ID')
         
-        if google_creds_json and sheet_id:
+        logger.info(f"Google credentials length: {len(google_creds_json) if google_creds_json else 0}")
+        logger.info(f"Sheet ID: {sheet_id[:20] + '...' if sheet_id else 'None'}")
+        
+        if not google_creds_json:
+            logger.error("GOOGLE_SERVICE_ACCOUNT_JSON environment variable not set")
+            return
+            
+        if not sheet_id:
+            logger.error("GOOGLE_SHEET_ID environment variable not set")
+            return
+        
+        # Parse JSON credentials
+        try:
             cred_dict = json.loads(google_creds_json)
-            credentials = Credentials.from_service_account_info(cred_dict)
-            client = gspread.authorize(credentials)
-            sheets_service = client.open_by_key(sheet_id).sheet1
-            logger.info("Google Sheets initialized successfully")
-        else:
-            logger.warning("Google Sheets credentials not found")
+            logger.info(f"Credentials type: {cred_dict.get('type', 'unknown')}")
+            logger.info(f"Project ID: {cred_dict.get('project_id', 'unknown')}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse Google credentials JSON: {e}")
+            return
+        
+        # Create credentials
+        credentials = Credentials.from_service_account_info(
+            cred_dict,
+            scopes=['https://www.googleapis.com/auth/spreadsheets']
+        )
+        
+        # Connect to Google Sheets
+        client = gspread.authorize(credentials)
+        sheets_service = client.open_by_key(sheet_id).sheet1
+        logger.info("Google Sheets initialized successfully")
+        
     except Exception as e:
         logger.error(f"Failed to initialize Google Sheets: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 def add_message_to_sheet(user_id, message_type, content):
     try:

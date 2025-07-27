@@ -95,6 +95,20 @@ def init_google_sheets():
                     private_key = private_key.replace('\\n', '\n')
                     logger.info("Replaced \\n with actual newlines")
                 
+                # Fix Base64 padding issues in private key content
+                lines = private_key.split('\n')
+                fixed_lines = []
+                for line in lines:
+                    if line and not line.startswith('-----'):
+                        # This is a Base64 content line, fix padding
+                        missing_padding = len(line) % 4
+                        if missing_padding:
+                            line += '=' * (4 - missing_padding)
+                            logger.info(f"Fixed padding for line: {line[:20]}...")
+                    fixed_lines.append(line)
+                
+                private_key = '\n'.join(fixed_lines)
+                
                 # Ensure proper formatting
                 if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
                     logger.error("Private key doesn't start with proper header")

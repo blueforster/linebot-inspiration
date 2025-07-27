@@ -29,8 +29,16 @@ def webhook():
     return '', 200
 
 if __name__ == '__main__':
-    # Zeabur expects port 8080
-    port = int(os.environ.get('PORT', 8080))
-    print(f"Starting server on 0.0.0.0:{port}")
+    # Debug environment variables
+    print("=== Environment Debug ===")
     print(f"PORT environment variable: {os.environ.get('PORT', 'not set')}")
+    print(f"All environment variables containing PORT:")
+    for key, value in os.environ.items():
+        if 'PORT' in key.upper():
+            print(f"  {key} = {value}")
+    print("========================")
+    
+    # Force use port 8080 since Zeabur expects it
+    port = 8080
+    print(f"Starting server on 0.0.0.0:{port}")
     app.run(host='0.0.0.0', port=port, debug=False)

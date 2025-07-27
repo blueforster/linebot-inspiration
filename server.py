@@ -151,9 +151,6 @@ def init_google_sheets():
             
             # Method 2: Write to temp file (handles formatting issues better)
             try:
-                import tempfile
-                import os
-                
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
                     json.dump(cred_dict, f, indent=2)
                     temp_file_path = f.name

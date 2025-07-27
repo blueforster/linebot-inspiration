@@ -46,144 +46,9 @@ def init_line_bot():
 
 def init_google_sheets():
     global sheets_service
-    try:
-        # Try Base64 first, then JSON
-        google_creds_base64 = os.environ.get('GOOGLE_CREDENTIALS_BASE64')
-        google_creds_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
-        sheet_id = os.environ.get('GOOGLE_SHEET_ID')
-        
-        logger.info(f"Base64 credentials available: {'✓' if google_creds_base64 else '✗'}")
-        logger.info(f"JSON credentials available: {'✓' if google_creds_json else '✗'}")
-        logger.info(f"Sheet ID: {sheet_id[:20] + '...' if sheet_id else 'None'}")
-        
-        if not sheet_id:
-            logger.error("GOOGLE_SHEET_ID environment variable not set")
-            return
-        
-        # Get credentials (try JSON first, then Base64)
-        cred_dict = None
-        
-        # Try JSON format first (simpler and more reliable)
-        if google_creds_json:
-            try:
-                cred_dict = json.loads(google_creds_json)
-                logger.info("Successfully loaded JSON credentials")
-            except Exception as e:
-                logger.error(f"Failed to parse JSON credentials: {e}")
-        
-        # Fallback to Base64 if JSON fails
-        if not cred_dict and google_creds_base64:
-            try:
-                logger.info(f"Base64 credential length: {len(google_creds_base64)}")
-                
-                # Fix Base64 padding for the entire credentials string
-                base64_data = google_creds_base64.strip()
-                missing_padding = len(base64_data) % 4
-                if missing_padding:
-                    base64_data += '=' * (4 - missing_padding)
-                    logger.info(f"Fixed Base64 padding: added {4 - missing_padding} padding chars")
-                
-                decoded_creds = base64.b64decode(base64_data).decode('utf-8')
-                logger.info(f"Decoded credential length: {len(decoded_creds)}")
-                logger.info(f"First 100 chars: {decoded_creds[:100]}")
-                
-                cred_dict = json.loads(decoded_creds)
-                logger.info("Successfully loaded Base64 credentials")
-            except Exception as e:
-                logger.error(f"Failed to decode Base64 credentials: {e}")
-                import traceback
-                logger.error(f"Full traceback: {traceback.format_exc()}")
-        
-        if not cred_dict:
-            logger.error("No valid Google credentials found")
-            return
-            
-        logger.info(f"Credentials type: {cred_dict.get('type', 'unknown')}")
-        logger.info(f"Project ID: {cred_dict.get('project_id', 'unknown')}")
-        logger.info(f"Private key length: {len(cred_dict.get('private_key', ''))}")
-        
-        # Debug and fix private key format
-        if 'private_key' in cred_dict:
-            private_key = cred_dict['private_key']
-            logger.info(f"Original private key preview: {private_key[:100]}...")
-            logger.info(f"Private key ends with: ...{private_key[-50:]}")
-            
-            # Check if private key looks correct
-            if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-                logger.error("Private key doesn't start with correct header")
-            if not private_key.strip().endswith('-----END PRIVATE KEY-----'):
-                logger.error("Private key doesn't end with correct footer")
-            
-            # Count newlines and check structure
-            lines = private_key.split('\n')
-            logger.info(f"Private key has {len(lines)} lines")
-            
-            # Ensure proper line structure
-            if lines and lines[0].strip() == '-----BEGIN PRIVATE KEY-----':
-                logger.info("Private key header is correct")
-            else:
-                logger.error(f"Invalid header: '{lines[0] if lines else 'empty'}'")
-                
-            if lines and lines[-1].strip() == '-----END PRIVATE KEY-----':
-                logger.info("Private key footer is correct")
-            else:
-                # Try to fix missing footer
-                if private_key.strip().endswith('-----END PRIVATE KEY-----'):
-                    logger.info("Private key footer exists but may have whitespace issues")
-                else:
-                    logger.error(f"Invalid footer: '{lines[-1] if lines else 'empty'}'")
-                    
-            # Don't modify the private key - let Google handle the parsing
-            logger.info("Using private key as-is without modifications")
-        
-        # Create credentials - try multiple approaches
-        credentials = None
-        
-        # Method 1: Direct from dict
-        try:
-            credentials = Credentials.from_service_account_info(
-                cred_dict,
-                scopes=['https://www.googleapis.com/auth/spreadsheets']
-            )
-            logger.info("Successfully created credentials using from_service_account_info")
-        except Exception as e:
-            logger.error(f"Method 1 failed - from_service_account_info: {e}")
-            
-            # Method 2: Write to temp file (handles formatting issues better)
-            try:
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                    json.dump(cred_dict, f, indent=2)
-                    temp_file_path = f.name
-                
-                logger.info(f"Created temp file: {temp_file_path}")
-                
-                credentials = Credentials.from_service_account_file(
-                    temp_file_path,
-                    scopes=['https://www.googleapis.com/auth/spreadsheets']
-                )
-                
-                # Clean up temp file
-                os.unlink(temp_file_path)
-                logger.info("Successfully created credentials using temp file method")
-            except Exception as e2:
-                logger.error(f"Method 2 failed - temp file: {e2}")
-                import traceback
-                logger.error(f"Full traceback: {traceback.format_exc()}")
-                return
-        
-        if not credentials:
-            logger.error("Could not create Google credentials")
-            return
-        
-        # Connect to Google Sheets
-        client = gspread.authorize(credentials)
-        sheets_service = client.open_by_key(sheet_id).sheet1
-        logger.info("Google Sheets initialized successfully")
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize Google Sheets: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
+    logger.info("Google Sheets initialization temporarily disabled for debugging")
+    logger.info("Will focus on LINE Bot functionality first")
+    sheets_service = None
 
 def add_message_to_sheet(user_id, message_type, content):
     try:
@@ -246,28 +111,31 @@ def handle_text_message(event):
         
         logger.info(f"Received message from {user_id}: {text_content}")
         
-        # Add message to Google Sheets
-        success = add_message_to_sheet(user_id, 'text', text_content)
-        
-        # Send reply
-        if success:
-            reply_text = f"✅ 已記錄：{text_content}"
-        else:
-            reply_text = "❌ 記錄失敗，請稍後再試"
+        # Skip Google Sheets for now, just reply
+        reply_text = f"📝 收到訊息：{text_content}\n(Google Sheets 功能暫時關閉中)"
         
         if line_bot_api:
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text=reply_text)
             )
+            logger.info("Reply sent successfully")
+        else:
+            logger.error("LINE Bot API not initialized")
         
     except Exception as e:
         logger.error(f"Error handling text message: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        
         if line_bot_api:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="處理訊息時發生錯誤")
-            )
+            try:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="處理訊息時發生錯誤")
+                )
+            except Exception as e2:
+                logger.error(f"Failed to send error reply: {e2}")
 
 # Initialize services when module is loaded
 init_line_bot()

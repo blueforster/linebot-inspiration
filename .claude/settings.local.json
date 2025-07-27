@@ -4,7 +4,8 @@
       "Bash(chmod:*)",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(python3:*)"
     ],
     "deny": []
   }

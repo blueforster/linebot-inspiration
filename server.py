@@ -102,52 +102,77 @@ def init_google_sheets():
         logger.info(f"Project ID: {cred_dict.get('project_id', 'unknown')}")
         logger.info(f"Private key length: {len(cred_dict.get('private_key', ''))}")
         
-        # Fix Base64 padding in private key content
+        # Debug and fix private key format
         if 'private_key' in cred_dict:
             private_key = cred_dict['private_key']
+            logger.info(f"Original private key preview: {private_key[:100]}...")
+            logger.info(f"Private key ends with: ...{private_key[-50:]}")
+            
+            # Check if private key looks correct
+            if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+                logger.error("Private key doesn't start with correct header")
+            if not private_key.strip().endswith('-----END PRIVATE KEY-----'):
+                logger.error("Private key doesn't end with correct footer")
+            
+            # Count newlines and check structure
             lines = private_key.split('\n')
-            fixed_lines = []
-            padding_fixed = False
+            logger.info(f"Private key has {len(lines)} lines")
             
-            for line in lines:
-                if line and not line.startswith('-----'):
-                    # This is a Base64 content line - fix padding
-                    original_line = line.strip()
-                    if original_line:  # Only process non-empty lines
-                        missing_padding = len(original_line) % 4
-                        if missing_padding:
-                            line = original_line + '=' * (4 - missing_padding)
-                            padding_fixed = True
-                            logger.info(f"Fixed padding for private key line (added {4 - missing_padding} chars)")
-                        else:
-                            line = original_line
-                    else:
-                        line = original_line
-                else:
-                    line = line  # Keep header/footer lines as-is
-                fixed_lines.append(line)
-            
-            if padding_fixed:
-                cred_dict['private_key'] = '\n'.join(fixed_lines)
-                logger.info("Private key Base64 padding fixed")
+            # Ensure proper line structure
+            if lines and lines[0].strip() == '-----BEGIN PRIVATE KEY-----':
+                logger.info("Private key header is correct")
             else:
-                logger.info("Private key Base64 padding was already correct")
+                logger.error(f"Invalid header: '{lines[0] if lines else 'empty'}'")
+                
+            if lines and lines[-1].strip() == '-----END PRIVATE KEY-----':
+                logger.info("Private key footer is correct")
+            else:
+                # Try to fix missing footer
+                if private_key.strip().endswith('-----END PRIVATE KEY-----'):
+                    logger.info("Private key footer exists but may have whitespace issues")
+                else:
+                    logger.error(f"Invalid footer: '{lines[-1] if lines else 'empty'}'")
+                    
+            # Don't modify the private key - let Google handle the parsing
+            logger.info("Using private key as-is without modifications")
         
-        # Create credentials - simplified approach
+        # Create credentials - try multiple approaches
         credentials = None
+        
+        # Method 1: Direct from dict
         try:
-            # Direct approach: from_service_account_info
             credentials = Credentials.from_service_account_info(
                 cred_dict,
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
             logger.info("Successfully created credentials using from_service_account_info")
         except Exception as e:
-            logger.error(f"Google credentials creation failed: {e}")
-            logger.error(f"Credential dict keys: {list(cred_dict.keys()) if cred_dict else 'None'}")
-            import traceback
-            logger.error(f"Full traceback: {traceback.format_exc()}")
-            return
+            logger.error(f"Method 1 failed - from_service_account_info: {e}")
+            
+            # Method 2: Write to temp file (handles formatting issues better)
+            try:
+                import tempfile
+                import os
+                
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                    json.dump(cred_dict, f, indent=2)
+                    temp_file_path = f.name
+                
+                logger.info(f"Created temp file: {temp_file_path}")
+                
+                credentials = Credentials.from_service_account_file(
+                    temp_file_path,
+                    scopes=['https://www.googleapis.com/auth/spreadsheets']
+                )
+                
+                # Clean up temp file
+                os.unlink(temp_file_path)
+                logger.info("Successfully created credentials using temp file method")
+            except Exception as e2:
+                logger.error(f"Method 2 failed - temp file: {e2}")
+                import traceback
+                logger.error(f"Full traceback: {traceback.format_exc()}")
+                return
         
         if not credentials:
             logger.error("Could not create Google credentials")

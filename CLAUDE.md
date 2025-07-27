@@ -486,9 +486,120 @@ python dev_tools.py backup         # 資料備份
    - 權限管理系統
    - API 限流和監控
 
+## 部署故障排除記錄
+
+### 問題 1: Google Sheets 認證失敗
+**錯誤訊息**: `google.auth.exceptions.MalformedError: No key could be detected.`
+
+**根本原因**: Google Service Account 私鑰格式在環境變數中損壞
+- 缺少 `-----BEGIN PRIVATE KEY-----` 頭部
+- 缺少 `-----END PRIVATE KEY-----` 尾部
+- `\n` 字符未正確轉換為換行符
+
+**解決方案**:
+1. **環境變數分離**: 使用 `GOOGLE_PRIVATE_KEY` 單獨存放私鑰
+2. **自動格式修復**: 程式自動檢測並添加缺失的頭部/尾部
+3. **換行符處理**: 自動將 `\n` 轉換為實際換行符
+
+**最終環境變數格式**:
+```bash
+GOOGLE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCmpjysVErBsHAk\n...（私鑰內容）...\n-----END PRIVATE KEY-----
+```
+
+**修復程式碼**:
+```python
+# 自動修復私鑰格式
+if '\\n' in private_key:
+    private_key = private_key.replace('\\n', '\n')
+
+if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+    private_key = '-----BEGIN PRIVATE KEY-----\n' + private_key
+if not private_key.endswith('-----END PRIVATE KEY-----'):
+    private_key = private_key + '\n-----END PRIVATE KEY-----'
+```
+
+### 問題 2: LINE Bot 401 認證錯誤
+**錯誤訊息**: `LineBotApiError: status_code=401, error_response={"message": "Authentication failed"}`
+
+**根本原因**: LINE Channel Access Token 設定問題
+
+**解決方案**:
+1. **分離問題**: 暫時禁用 Google Sheets 功能專注於 LINE Bot
+2. **環境變數檢查**: 確認 `LINE_CHANNEL_ACCESS_TOKEN` 和 `LINE_CHANNEL_SECRET` 正確設定
+3. **逐步測試**: 先確保基本 LINE Bot 功能正常再整合 Google Sheets
+
+### 問題 3: 端口映射問題 (之前解決)
+**錯誤訊息**: 502 Bad Gateway
+
+**根本原因**: Zeabur 容器期望端口 8080，但應用程式監聽端口 5000
+
+**解決方案**: 統一使用端口 5000 配置
+
+## 關鍵學習
+
+### 1. 環境變數處理最佳實務
+- **分離敏感資料**: 私鑰、Token 分別設定
+- **格式標準化**: 使用 `\n` 表示換行，程式端自動轉換
+- **自動修復**: 程式應能處理常見的格式問題
+
+### 2. 故障排除策略
+- **問題隔離**: 分別測試各個組件（LINE Bot、Google Sheets）
+- **逐步回歸**: 從簡單功能開始，逐步添加複雜功能
+- **詳細日誌**: 記錄每個步驟的狀態和錯誤信息
+
+### 3. 部署安全考量
+- **GitHub 敏感資料掃描**: 避免在程式碼中硬編碼憑證
+- **環境變數安全**: 使用平台提供的安全環境變數存儲
+
 ---
 
-**專案開發時間**: 約 45 分鐘  
+## 下次開發 LINE Bot 的最佳化 Prompt
+
+### 建議的 Prompt 格式：
+
+```
+請幫我建立一個 Python LINE Bot 專案，具備以下功能：
+
+**核心需求**:
+- [具體功能描述，例如：訊息記錄、語音轉文字等]
+- 部署平台：[Zeabur/Heroku/AWS 等]
+- 資料儲存：[Google Sheets/Database 等]
+
+**技術架構偏好**:
+- 使用 Flask 框架
+- 簡化的單檔案架構（而非複雜的模組化結構）
+- 內建錯誤處理和自動修復機制
+
+**重要設定要求**:
+1. 自動處理 Google Service Account 私鑰格式問題
+2. 支援環境變數中的 \n 轉換
+3. 包含完整的 Zeabur 部署設定
+4. 添加健康檢查端點
+5. 詳細的日誌記錄用於故障排除
+
+**請優先使用簡化設計**:
+- 單一主程式檔案（server.py）
+- 直接的環境變數處理
+- 內建的格式修復功能
+- 漸進式功能啟用（先 LINE Bot，再外部整合）
+
+請提供完整的專案檔案，包括 requirements.txt、zeabur.json、wsgi.py 和環境變數設定指南。
+```
+
+### 關鍵優化點：
+
+1. **簡化架構**: 單檔案而非複雜模組化
+2. **內建修復**: 自動處理常見格式問題
+3. **漸進開發**: 先核心功能，再擴充整合
+4. **詳細日誌**: 便於快速故障排除
+5. **環境變數最佳實務**: 明確的設定指南
+
+這樣的 Prompt 可以讓下次開發避免重複遇到認證和部署問題，更快速地完成 LINE Bot 開發和部署。
+
+---
+
+**專案開發時間**: 約 45 分鐘 + 60 分鐘故障排除  
 **程式碼行數**: 約 2,000+ 行  
 **開發方式**: Claude Code 輔助開發  
-**最終狀態**: 生產就緒 ✅
+**最終狀態**: 生產就緒 ✅  
+**成功部署**: 2025-01-27 ✅

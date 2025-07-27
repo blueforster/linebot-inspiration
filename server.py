@@ -24,9 +24,23 @@ def health_check():
         'port': os.environ.get('PORT', 'unknown')
     }), 200
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/webhook', methods=['POST', 'GET'])
 def webhook():
-    return '', 200
+    # Handle LINE webhook verification
+    if request.method == 'GET':
+        return 'Webhook endpoint is ready', 200
+    
+    # Handle POST requests from LINE
+    try:
+        # Log the request for debugging
+        print(f"Webhook received: {request.method} {request.path}")
+        print(f"Headers: {dict(request.headers)}")
+        
+        # Simple response for LINE webhook
+        return '', 200
+    except Exception as e:
+        print(f"Webhook error: {e}")
+        return '', 500
 
 if __name__ == '__main__':
     # Debug environment variables

@@ -64,11 +64,25 @@ def init_google_sheets():
         cred_dict = None
         if google_creds_base64:
             try:
-                decoded_creds = base64.b64decode(google_creds_base64).decode('utf-8')
+                # Fix Base64 padding for the entire credentials string
+                base64_data = google_creds_base64.strip()
+                missing_padding = len(base64_data) % 4
+                if missing_padding:
+                    base64_data += '=' * (4 - missing_padding)
+                    logger.info(f"Fixed Base64 padding: added {4 - missing_padding} padding chars")
+                
+                decoded_creds = base64.b64decode(base64_data).decode('utf-8')
                 cred_dict = json.loads(decoded_creds)
                 logger.info("Successfully loaded Base64 credentials")
             except Exception as e:
                 logger.error(f"Failed to decode Base64 credentials: {e}")
+                # Try without padding fix as fallback
+                try:
+                    decoded_creds = base64.b64decode(google_creds_base64).decode('utf-8')
+                    cred_dict = json.loads(decoded_creds)
+                    logger.info("Successfully loaded Base64 credentials (without padding fix)")
+                except Exception as e2:
+                    logger.error(f"Fallback also failed: {e2}")
         
         if not cred_dict and google_creds_json:
             try:
@@ -90,19 +104,31 @@ def init_google_sheets():
             private_key = cred_dict['private_key']
             lines = private_key.split('\n')
             fixed_lines = []
+            padding_fixed = False
             
             for line in lines:
                 if line and not line.startswith('-----'):
                     # This is a Base64 content line - fix padding
-                    line = line.strip()
-                    missing_padding = len(line) % 4
-                    if missing_padding:
-                        line += '=' * (4 - missing_padding)
-                        logger.info(f"Fixed padding for line: {line[:20]}...")
+                    original_line = line.strip()
+                    if original_line:  # Only process non-empty lines
+                        missing_padding = len(original_line) % 4
+                        if missing_padding:
+                            line = original_line + '=' * (4 - missing_padding)
+                            padding_fixed = True
+                            logger.info(f"Fixed padding for private key line (added {4 - missing_padding} chars)")
+                        else:
+                            line = original_line
+                    else:
+                        line = original_line
+                else:
+                    line = line  # Keep header/footer lines as-is
                 fixed_lines.append(line)
             
-            cred_dict['private_key'] = '\n'.join(fixed_lines)
-            logger.info("Private key Base64 padding fixed")
+            if padding_fixed:
+                cred_dict['private_key'] = '\n'.join(fixed_lines)
+                logger.info("Private key Base64 padding fixed")
+            else:
+                logger.info("Private key Base64 padding was already correct")
         
         # Create credentials - try different methods
         credentials = None

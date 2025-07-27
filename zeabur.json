@@ -1,3 +1,4 @@
 {
-  "app_type": "python"
+  "app_type": "python",
+  "start_command": "python server.py"
 }

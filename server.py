@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""
+Simple standalone server for Zeabur
+"""
+import os
+from flask import Flask, jsonify, request
+
+# Create Flask app directly
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return jsonify({
+        'message': 'LINE Bot Inspiration Notes API', 
+        'status': 'running',
+        'port': os.environ.get('PORT', 'unknown')
+    }), 200
+
+@app.route('/health')
+def health_check():
+    return jsonify({
+        'status': 'healthy', 
+        'service': 'linebot-inspiration',
+        'port': os.environ.get('PORT', 'unknown')
+    }), 200
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    return '', 200
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    print(f"Starting server on 0.0.0.0:{port}")
+    app.run(host='0.0.0.0', port=port, debug=False)

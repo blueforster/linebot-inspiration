@@ -45,14 +45,32 @@ def init_line_bot():
 def init_google_sheets():
     global sheets_service
     try:
+        # Try Base64 encoded credentials first
+        google_creds_base64 = os.environ.get('GOOGLE_CREDENTIALS_BASE64')
         google_creds_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
         sheet_id = os.environ.get('GOOGLE_SHEET_ID')
         
-        logger.info(f"Google credentials length: {len(google_creds_json) if google_creds_json else 0}")
+        logger.info(f"Base64 credentials available: {'✓' if google_creds_base64 else '✗'}")
+        logger.info(f"JSON credentials available: {'✓' if google_creds_json else '✗'}")
         logger.info(f"Sheet ID: {sheet_id[:20] + '...' if sheet_id else 'None'}")
         
-        if not google_creds_json:
-            logger.error("GOOGLE_SERVICE_ACCOUNT_JSON environment variable not set")
+        # Get credentials from Base64 or JSON
+        cred_json = None
+        if google_creds_base64:
+            import base64
+            try:
+                decoded_creds = base64.b64decode(google_creds_base64).decode()
+                cred_json = decoded_creds
+                logger.info("Using Base64 encoded credentials")
+            except Exception as e:
+                logger.error(f"Failed to decode Base64 credentials: {e}")
+        
+        if not cred_json and google_creds_json:
+            cred_json = google_creds_json
+            logger.info("Using JSON credentials")
+        
+        if not cred_json:
+            logger.error("No Google credentials found (neither Base64 nor JSON)")
             return
             
         if not sheet_id:
@@ -61,7 +79,7 @@ def init_google_sheets():
         
         # Parse JSON credentials
         try:
-            cred_dict = json.loads(google_creds_json)
+            cred_dict = json.loads(cred_json)
             logger.info(f"Credentials type: {cred_dict.get('type', 'unknown')}")
             logger.info(f"Project ID: {cred_dict.get('project_id', 'unknown')}")
             

@@ -60,7 +60,7 @@ git add .
 git commit -m "Initial commit: LINE Bot inspiration notes for Zeabur deployment"
 
 # 連接到您的 GitHub repository
-git remote add origin https://github.com/您的用戶名/linebot-inspiration.git
+git remote add origin https://github.com/blueforster/linebot-inspiration.git
 
 # 推送到 main 分支
 git push -u origin main

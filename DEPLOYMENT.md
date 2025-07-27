@@ -87,7 +87,7 @@ git add .
 git commit -m "Initial commit: LINE Bot inspiration notes project"
 
 # 添加 GitHub remote (替換為您的 repository URL)
-git remote add origin https://github.com/yourusername/linebot-inspiration.git
+git remote add origin https://github.com/blueforster/linebot-inspiration.git
 git branch -M main
 git push -u origin main
 ```

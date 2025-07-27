@@ -245,7 +245,7 @@ push_to_github() {
     # 檢查 remote 是否存在
     if ! git remote get-url origin &>/dev/null; then
         log_error "未設定 GitHub remote，請先設定："
-        echo "git remote add origin https://github.com/您的用戶名/linebot-inspiration.git"
+        echo "git remote add origin https://github.com/blueforster/linebot-inspiration.git"
         exit 1
     fi
     

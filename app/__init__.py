@@ -7,11 +7,15 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    # Validate configuration
-    Config.validate_config()
-    
     # Setup logging
     setup_logger(app)
+    
+    # Try to validate configuration, but don't crash if it fails
+    try:
+        Config.validate_config()
+        app.logger.info("Configuration validation successful")
+    except Exception as e:
+        app.logger.warning(f"Configuration validation failed: {e}")
     
     # Register blueprints
     app.register_blueprint(webhook_bp)

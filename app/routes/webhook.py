@@ -1,13 +1,22 @@
 from flask import Blueprint, request, abort, jsonify
 import logging
-from app.services.line_service import LineService
 from app.utils.logger import get_logger
 
 webhook_bp = Blueprint('webhook', __name__)
 logger = get_logger(__name__)
 
-# Initialize LINE service
-line_service = LineService()
+# Initialize LINE service only when needed
+line_service = None
+
+def get_line_service():
+    global line_service
+    if line_service is None:
+        try:
+            from app.services.line_service import LineService
+            line_service = LineService()
+        except Exception as e:
+            logger.error(f"Failed to initialize LINE service: {e}")
+    return line_service
 
 @webhook_bp.route('/webhook', methods=['POST'])
 def webhook():

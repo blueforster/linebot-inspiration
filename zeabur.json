@@ -1,6 +1,6 @@
 {
   "app_type": "python",
   "build_command": "pip install -r requirements.txt",
-  "start_command": "python wsgi.py",
+  "start_command": "gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --timeout 60 --access-logfile - --error-logfile -",
   "install_command": "pip install --upgrade pip"
 }

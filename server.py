@@ -46,9 +46,55 @@ def init_line_bot():
 
 def init_google_sheets():
     global sheets_service
-    logger.info("Google Sheets initialization temporarily disabled for debugging")
-    logger.info("Will focus on LINE Bot functionality first")
-    sheets_service = None
+    try:
+        sheet_id = os.environ.get('GOOGLE_SHEET_ID')
+        
+        if not sheet_id:
+            logger.warning("GOOGLE_SHEET_ID not set - Google Sheets disabled")
+            sheets_service = None
+            return
+        
+        # Create credentials using only the essential fields
+        # This bypasses many potential formatting issues
+        cred_info = {
+            "type": "service_account",
+            "project_id": "linebot-note-01",
+            "private_key_id": "4fbedd350181527528524ae041a671334c02210b",
+            "client_email": "forsterlin@linebot-note-01.iam.gserviceaccount.com",
+            "client_id": "118317723130164740048",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/forsterlin%40linebot-note-01.iam.gserviceaccount.com",
+            "universe_domain": "googleapis.com"
+        }
+        
+        # Try to get private key from environment
+        private_key_env = os.environ.get('GOOGLE_PRIVATE_KEY')
+        if private_key_env:
+            # Replace \\n with actual newlines if needed
+            private_key = private_key_env.replace('\\n', '\n')
+            cred_info["private_key"] = private_key
+            logger.info("Using private key from GOOGLE_PRIVATE_KEY environment variable")
+        else:
+            logger.error("GOOGLE_PRIVATE_KEY environment variable not found")
+            sheets_service = None
+            return
+        
+        # Create credentials
+        credentials = Credentials.from_service_account_info(
+            cred_info,
+            scopes=['https://www.googleapis.com/auth/spreadsheets']
+        )
+        
+        # Connect to Google Sheets
+        client = gspread.authorize(credentials)
+        sheets_service = client.open_by_key(sheet_id).sheet1
+        logger.info("Google Sheets initialized successfully!")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize Google Sheets: {e}")
+        sheets_service = None
 
 def add_message_to_sheet(user_id, message_type, content):
     try:
@@ -111,8 +157,16 @@ def handle_text_message(event):
         
         logger.info(f"Received message from {user_id}: {text_content}")
         
-        # Skip Google Sheets for now, just reply
-        reply_text = f"📝 收到訊息：{text_content}\n(Google Sheets 功能暫時關閉中)"
+        # Try to add message to Google Sheets
+        success = add_message_to_sheet(user_id, 'text', text_content)
+        
+        # Send reply based on result
+        if success:
+            reply_text = f"✅ 已記錄到 Google Sheets：{text_content}"
+        elif sheets_service is None:
+            reply_text = f"📝 收到訊息：{text_content}\n(Google Sheets 未初始化)"
+        else:
+            reply_text = f"❌ 記錄失敗：{text_content}\n請稍後再試"
         
         if line_bot_api:
             line_bot_api.reply_message(

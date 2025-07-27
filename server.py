@@ -65,13 +65,29 @@ def init_google_sheets():
             logger.info(f"Credentials type: {cred_dict.get('type', 'unknown')}")
             logger.info(f"Project ID: {cred_dict.get('project_id', 'unknown')}")
             
-            # Fix private key newlines - replace literal \n with actual newlines
+            # Fix private key formatting
             if 'private_key' in cred_dict:
                 private_key = cred_dict['private_key']
-                # Replace literal \n with actual newlines
-                private_key = private_key.replace('\\n', '\n')
+                logger.info(f"Original private key length: {len(private_key)}")
+                logger.info(f"Private key starts with: {private_key[:50]}...")
+                
+                # Handle different newline encodings
+                if '\\n' in private_key:
+                    # Replace literal \n with actual newlines
+                    private_key = private_key.replace('\\n', '\n')
+                    logger.info("Replaced \\n with actual newlines")
+                
+                # Ensure proper formatting
+                if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+                    logger.error("Private key doesn't start with proper header")
+                if not private_key.endswith('-----END PRIVATE KEY-----\n'):
+                    if private_key.endswith('-----END PRIVATE KEY-----'):
+                        private_key += '\n'
+                    logger.info("Added missing trailing newline")
+                
                 cred_dict['private_key'] = private_key
-                logger.info("Fixed private key newlines")
+                logger.info(f"Final private key length: {len(private_key)}")
+                logger.info("Private key processing completed")
                 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse Google credentials JSON: {e}")

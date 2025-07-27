@@ -5,6 +5,8 @@ LINE Bot server with Google Sheets integration
 import os
 import json
 import logging
+import tempfile
+import base64
 from datetime import datetime
 from flask import Flask, jsonify, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -57,7 +59,6 @@ def init_google_sheets():
         # Get credentials from Base64 or JSON
         cred_json = None
         if google_creds_base64:
-            import base64
             try:
                 decoded_creds = base64.b64decode(google_creds_base64).decode()
                 cred_json = decoded_creds
@@ -139,7 +140,6 @@ def init_google_sheets():
             
             # Method 2: Write to temp file and use from_service_account_file
             try:
-                import tempfile
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
                     json.dump(cred_dict, f)
                     temp_file_path = f.name
@@ -150,7 +150,6 @@ def init_google_sheets():
                 )
                 
                 # Clean up temp file
-                import os
                 os.unlink(temp_file_path)
                 logger.info("Successfully created credentials using temp file method")
             except Exception as e2:

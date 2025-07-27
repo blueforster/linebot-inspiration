@@ -72,8 +72,47 @@ def init_google_sheets():
         # Try to get private key from environment
         private_key_env = os.environ.get('GOOGLE_PRIVATE_KEY')
         if private_key_env:
-            # Replace \\n with actual newlines if needed
-            private_key = private_key_env.replace('\\n', '\n')
+            # Multiple attempts to fix the private key format
+            private_key = private_key_env
+            
+            # Method 1: Replace \\n with actual newlines
+            if '\\n' in private_key:
+                private_key = private_key.replace('\\n', '\n')
+                logger.info("Converted \\n to newlines in private key")
+            
+            # Method 2: Ensure proper header and footer
+            if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
+                logger.error("Private key missing proper header")
+            if not private_key.endswith('-----END PRIVATE KEY-----'):
+                logger.error("Private key missing proper footer")
+            
+            # Method 3: Log key structure for debugging
+            lines = private_key.split('\n')
+            logger.info(f"Private key has {len(lines)} lines")
+            logger.info(f"First line: '{lines[0][:50]}...' if lines else 'empty'")
+            logger.info(f"Last line: '...{lines[-1][-50:]}' if lines else 'empty'")
+            
+            # Method 4: Try to reconstruct the key if it's mangled
+            if len(lines) < 3:  # Should have header, content, footer at minimum
+                logger.warning("Private key appears to be on single line, attempting to reconstruct")
+                # This is a common issue - the key gets flattened
+                # Let's try to rebuild it properly
+                if '-----BEGIN PRIVATE KEY-----' in private_key and '-----END PRIVATE KEY-----' in private_key:
+                    # Extract just the base64 content between headers
+                    start = private_key.find('-----BEGIN PRIVATE KEY-----') + len('-----BEGIN PRIVATE KEY-----')
+                    end = private_key.find('-----END PRIVATE KEY-----')
+                    base64_content = private_key[start:end].strip()
+                    
+                    # Rebuild with proper line breaks (64 chars per line is standard)
+                    lines = []
+                    lines.append('-----BEGIN PRIVATE KEY-----')
+                    for i in range(0, len(base64_content), 64):
+                        lines.append(base64_content[i:i+64])
+                    lines.append('-----END PRIVATE KEY-----')
+                    
+                    private_key = '\n'.join(lines)
+                    logger.info("Reconstructed private key with proper line breaks")
+            
             cred_info["private_key"] = private_key
             logger.info("Using private key from GOOGLE_PRIVATE_KEY environment variable")
         else:

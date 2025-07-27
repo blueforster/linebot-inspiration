@@ -47,31 +47,43 @@ def init_line_bot():
 def init_google_sheets():
     global sheets_service
     try:
+        # Try Base64 first, then JSON
+        google_creds_base64 = os.environ.get('GOOGLE_CREDENTIALS_BASE64')
         google_creds_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
         sheet_id = os.environ.get('GOOGLE_SHEET_ID')
         
+        logger.info(f"Base64 credentials available: {'✓' if google_creds_base64 else '✗'}")
         logger.info(f"JSON credentials available: {'✓' if google_creds_json else '✗'}")
         logger.info(f"Sheet ID: {sheet_id[:20] + '...' if sheet_id else 'None'}")
         
-        if not google_creds_json:
-            logger.error("GOOGLE_SERVICE_ACCOUNT_JSON environment variable not set")
-            return
-            
         if not sheet_id:
             logger.error("GOOGLE_SHEET_ID environment variable not set")
             return
         
-        # Parse JSON credentials
-        try:
-            cred_dict = json.loads(google_creds_json)
-            logger.info(f"Credentials type: {cred_dict.get('type', 'unknown')}")
-            logger.info(f"Project ID: {cred_dict.get('project_id', 'unknown')}")
-            
-            logger.info("Using credentials as-is without modification")
-                
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse Google credentials JSON: {e}")
+        # Get credentials (prefer Base64)
+        cred_dict = None
+        if google_creds_base64:
+            try:
+                decoded_creds = base64.b64decode(google_creds_base64).decode('utf-8')
+                cred_dict = json.loads(decoded_creds)
+                logger.info("Successfully loaded Base64 credentials")
+            except Exception as e:
+                logger.error(f"Failed to decode Base64 credentials: {e}")
+        
+        if not cred_dict and google_creds_json:
+            try:
+                cred_dict = json.loads(google_creds_json)
+                logger.info("Successfully loaded JSON credentials")
+            except Exception as e:
+                logger.error(f"Failed to parse JSON credentials: {e}")
+        
+        if not cred_dict:
+            logger.error("No valid Google credentials found")
             return
+            
+        logger.info(f"Credentials type: {cred_dict.get('type', 'unknown')}")
+        logger.info(f"Project ID: {cred_dict.get('project_id', 'unknown')}")
+        logger.info(f"Private key length: {len(cred_dict.get('private_key', ''))}")
         
         # Create credentials - try different methods
         credentials = None

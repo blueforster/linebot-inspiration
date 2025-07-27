@@ -80,17 +80,22 @@ def init_google_sheets():
                 private_key = private_key.replace('\\n', '\n')
                 logger.info("Converted \\n to newlines in private key")
             
-            # Method 2: Ensure proper header and footer
+            # Method 2: Ensure proper header and footer, add if missing
             if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-                logger.error("Private key missing proper header")
+                logger.warning("Private key missing proper header, adding it")
+                private_key = '-----BEGIN PRIVATE KEY-----\n' + private_key
             if not private_key.endswith('-----END PRIVATE KEY-----'):
-                logger.error("Private key missing proper footer")
+                logger.warning("Private key missing proper footer, adding it")
+                private_key = private_key + '\n-----END PRIVATE KEY-----'
             
             # Method 3: Log key structure for debugging
             lines = private_key.split('\n')
             logger.info(f"Private key has {len(lines)} lines")
-            logger.info(f"First line: '{lines[0][:50]}...' if lines else 'empty'")
-            logger.info(f"Last line: '...{lines[-1][-50:]}' if lines else 'empty'")
+            if lines:
+                logger.info(f"First line: '{lines[0][:50]}...'")
+                logger.info(f"Last line: '...{lines[-1][-50:]}'")
+            else:
+                logger.info("Private key lines are empty")
             
             # Method 4: Try to reconstruct the key if it's mangled
             if len(lines) < 3:  # Should have header, content, footer at minimum

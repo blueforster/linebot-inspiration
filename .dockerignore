@@ -1,0 +1,83 @@
+# Git 相關
+.git
+.gitignore
+
+# 說明文件
+README.md
+DEPLOYMENT.md
+SECURITY.md
+CLAUDE.md
+*.md
+
+# 敏感檔案
+.env
+.env.*
+config/google-credentials.json
+*.key
+*.pem
+*.p12
+
+# 測試和開發
+tests/
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE 檔案
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS 檔案
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# 日誌檔案
+logs/
+*.log
+
+# 備份檔案
+backups/
+*.backup
+*.bak
+
+# 臨時檔案
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Node.js (如果有前端資源)
+node_modules/
+npm-debug.log*
+
+# Python 虛擬環境
+venv/
+env/
+ENV/
+
+# 建置檔案
+build/
+dist/
+*.egg-info/
+
+# 快取檔案
+.cache/
+.parcel-cache/
+
+# 測試資料
+test_data.json
+test_*.json
+
+# GitHub Actions (不需要在容器中)
+.github/

@@ -60,10 +60,22 @@ def init_google_sheets():
             logger.error("GOOGLE_SHEET_ID environment variable not set")
             return
         
-        # Get credentials (prefer Base64)
+        # Get credentials (try JSON first, then Base64)
         cred_dict = None
-        if google_creds_base64:
+        
+        # Try JSON format first (simpler and more reliable)
+        if google_creds_json:
             try:
+                cred_dict = json.loads(google_creds_json)
+                logger.info("Successfully loaded JSON credentials")
+            except Exception as e:
+                logger.error(f"Failed to parse JSON credentials: {e}")
+        
+        # Fallback to Base64 if JSON fails
+        if not cred_dict and google_creds_base64:
+            try:
+                logger.info(f"Base64 credential length: {len(google_creds_base64)}")
+                
                 # Fix Base64 padding for the entire credentials string
                 base64_data = google_creds_base64.strip()
                 missing_padding = len(base64_data) % 4
@@ -72,24 +84,15 @@ def init_google_sheets():
                     logger.info(f"Fixed Base64 padding: added {4 - missing_padding} padding chars")
                 
                 decoded_creds = base64.b64decode(base64_data).decode('utf-8')
+                logger.info(f"Decoded credential length: {len(decoded_creds)}")
+                logger.info(f"First 100 chars: {decoded_creds[:100]}")
+                
                 cred_dict = json.loads(decoded_creds)
                 logger.info("Successfully loaded Base64 credentials")
             except Exception as e:
                 logger.error(f"Failed to decode Base64 credentials: {e}")
-                # Try without padding fix as fallback
-                try:
-                    decoded_creds = base64.b64decode(google_creds_base64).decode('utf-8')
-                    cred_dict = json.loads(decoded_creds)
-                    logger.info("Successfully loaded Base64 credentials (without padding fix)")
-                except Exception as e2:
-                    logger.error(f"Fallback also failed: {e2}")
-        
-        if not cred_dict and google_creds_json:
-            try:
-                cred_dict = json.loads(google_creds_json)
-                logger.info("Successfully loaded JSON credentials")
-            except Exception as e:
-                logger.error(f"Failed to parse JSON credentials: {e}")
+                import traceback
+                logger.error(f"Full traceback: {traceback.format_exc()}")
         
         if not cred_dict:
             logger.error("No valid Google credentials found")
@@ -130,35 +133,21 @@ def init_google_sheets():
             else:
                 logger.info("Private key Base64 padding was already correct")
         
-        # Create credentials - try different methods
+        # Create credentials - simplified approach
         credentials = None
         try:
-            # Method 1: from_service_account_info
+            # Direct approach: from_service_account_info
             credentials = Credentials.from_service_account_info(
                 cred_dict,
                 scopes=['https://www.googleapis.com/auth/spreadsheets']
             )
             logger.info("Successfully created credentials using from_service_account_info")
         except Exception as e:
-            logger.error(f"Method 1 failed: {e}")
-            
-            # Method 2: Write to temp file and use from_service_account_file
-            try:
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                    json.dump(cred_dict, f)
-                    temp_file_path = f.name
-                
-                credentials = Credentials.from_service_account_file(
-                    temp_file_path,
-                    scopes=['https://www.googleapis.com/auth/spreadsheets']
-                )
-                
-                # Clean up temp file
-                os.unlink(temp_file_path)
-                logger.info("Successfully created credentials using temp file method")
-            except Exception as e2:
-                logger.error(f"Method 2 also failed: {e2}")
-                return
+            logger.error(f"Google credentials creation failed: {e}")
+            logger.error(f"Credential dict keys: {list(cred_dict.keys()) if cred_dict else 'None'}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            return
         
         if not credentials:
             logger.error("Could not create Google credentials")

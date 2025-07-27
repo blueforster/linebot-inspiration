@@ -85,6 +85,25 @@ def init_google_sheets():
         logger.info(f"Project ID: {cred_dict.get('project_id', 'unknown')}")
         logger.info(f"Private key length: {len(cred_dict.get('private_key', ''))}")
         
+        # Fix Base64 padding in private key content
+        if 'private_key' in cred_dict:
+            private_key = cred_dict['private_key']
+            lines = private_key.split('\n')
+            fixed_lines = []
+            
+            for line in lines:
+                if line and not line.startswith('-----'):
+                    # This is a Base64 content line - fix padding
+                    line = line.strip()
+                    missing_padding = len(line) % 4
+                    if missing_padding:
+                        line += '=' * (4 - missing_padding)
+                        logger.info(f"Fixed padding for line: {line[:20]}...")
+                fixed_lines.append(line)
+            
+            cred_dict['private_key'] = '\n'.join(fixed_lines)
+            logger.info("Private key Base64 padding fixed")
+        
         # Create credentials - try different methods
         credentials = None
         try:

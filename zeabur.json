@@ -1,18 +1,6 @@
 {
-  "build": {
-    "commands": [
-      "pip install --upgrade pip",
-      "pip install -r requirements.txt"
-    ]
-  },
-  "start": {
-    "command": "gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
-  },
-  "env": {
-    "PYTHON_VERSION": "3.11"
-  },
-  "healthcheck": {
-    "path": "/health",
-    "timeout": 30
-  }
+  "app_type": "python",
+  "build_command": "pip install -r requirements.txt",
+  "start_command": "gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --timeout 60",
+  "install_command": "pip install --upgrade pip"
 }

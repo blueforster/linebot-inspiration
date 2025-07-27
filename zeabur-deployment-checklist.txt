@@ -1,0 +1,33 @@
+Zeabur 部署檢查清單
+==================
+
+部署前檢查：
+✅ GitHub Repository 已建立 (https://github.com/blueforster/linebot-inspiration)
+✅ 程式碼已推送到 GitHub
+✅ Google Service Account 已設定
+□ Google Sheets 已建立並共用給 Service Account
+□ LINE Bot Channel 已建立
+
+需要完成的資訊：
+□ LINE_CHANNEL_ACCESS_TOKEN (從 LINE Developers Console 取得)
+□ LINE_CHANNEL_SECRET (從 LINE Developers Console 取得)
+□ GOOGLE_SHEET_ID (從 Google Sheets URL 取得)
+
+Zeabur 設定：
+□ 專案已從 GitHub 匯入
+□ 所有環境變數已設定 (參考 .env.zeabur 檔案)
+□ 服務已成功啟動
+□ 健康檢查通過 (/health)
+
+LINE Bot 設定：
+□ Webhook URL 已更新 (https://your-app.zeabur.app/webhook)
+□ Webhook 驗證通過
+□ 自動回覆功能已停用
+
+測試：
+□ 傳送文字訊息測試
+□ Google Sheets 記錄正常
+□ 指令功能正常 (/help, /today)
+□ 語音轉文字功能正常（如啟用）
+
+部署完成！

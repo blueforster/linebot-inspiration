@@ -2,17 +2,13 @@ import os
 import tempfile
 import logging
 from typing import Optional, Dict, Any
-from pydub import AudioSegment
+# from pydub import AudioSegment  # 暫時停用音訊處理
 import requests
 from config.settings import Config
 from app.utils.helpers import download_file, cleanup_temp_file, is_valid_file_extension
 
-try:
-    from google.cloud import speech
-    GOOGLE_SPEECH_AVAILABLE = True
-except ImportError:
-    GOOGLE_SPEECH_AVAILABLE = False
-    logging.warning("Google Cloud Speech not available. Install google-cloud-speech for advanced speech recognition.")
+# 暫時停用 Google Cloud Speech，使用基本功能
+GOOGLE_SPEECH_AVAILABLE = False
 
 class SpeechService:
     def __init__(self):
@@ -67,28 +63,8 @@ class SpeechService:
                 cleanup_temp_file(converted_file)
     
     def _convert_audio_format(self, input_file: str) -> Optional[str]:
-        try:
-            # Load audio file
-            audio = AudioSegment.from_file(input_file)
-            
-            # Convert to WAV format with specific settings for speech recognition
-            audio = audio.set_frame_rate(16000)  # 16kHz sample rate
-            audio = audio.set_channels(1)       # Mono
-            audio = audio.set_sample_width(2)   # 16-bit
-            
-            # Create temporary WAV file
-            temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-            temp_wav.close()
-            
-            # Export to WAV
-            audio.export(temp_wav.name, format="wav")
-            
-            self.logger.debug(f"Audio converted to WAV: {temp_wav.name}")
-            return temp_wav.name
-            
-        except Exception as e:
-            self.logger.error(f"Failed to convert audio format: {e}")
-            return None
+        # 暫時返回原始檔案，不進行格式轉換
+        return input_file
     
     def _google_speech_to_text(self, audio_file: str, language_code: str) -> Optional[Dict[str, Any]]:
         try:
@@ -146,30 +122,14 @@ class SpeechService:
             return None
     
     def _fallback_speech_processing(self, audio_file: str) -> Dict[str, Any]:
-        try:
-            # Get audio duration and basic info
-            audio = AudioSegment.from_file(audio_file)
-            duration = len(audio) / 1000.0  # Duration in seconds
-            
-            # Simple fallback - return metadata
-            return {
-                'transcript': '[語音訊息已接收，但無法轉換為文字]',
-                'confidence': 0.0,
-                'language': 'unknown',
-                'service': 'fallback',
-                'duration': duration,
-                'alternatives': []
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Fallback processing error: {e}")
-            return {
-                'transcript': '[語音訊息處理失敗]',
-                'confidence': 0.0,
-                'language': 'unknown',
-                'service': 'error',
-                'alternatives': []
-            }
+        # 簡化的備援處理
+        return {
+            'transcript': '[語音訊息已接收，但無法轉換為文字]',
+            'confidence': 0.0,
+            'language': 'unknown',
+            'service': 'fallback',
+            'alternatives': []
+        }
     
     def process_long_audio(self, audio_url: str, language_code: str = None) -> Optional[Dict[str, Any]]:
         temp_file = None

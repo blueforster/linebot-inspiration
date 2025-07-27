@@ -47,31 +47,14 @@ def init_line_bot():
 def init_google_sheets():
     global sheets_service
     try:
-        # Try Base64 encoded credentials first
-        google_creds_base64 = os.environ.get('GOOGLE_CREDENTIALS_BASE64')
         google_creds_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
         sheet_id = os.environ.get('GOOGLE_SHEET_ID')
         
-        logger.info(f"Base64 credentials available: {'✓' if google_creds_base64 else '✗'}")
         logger.info(f"JSON credentials available: {'✓' if google_creds_json else '✗'}")
         logger.info(f"Sheet ID: {sheet_id[:20] + '...' if sheet_id else 'None'}")
         
-        # Get credentials from Base64 or JSON
-        cred_json = None
-        if google_creds_base64:
-            try:
-                decoded_creds = base64.b64decode(google_creds_base64).decode()
-                cred_json = decoded_creds
-                logger.info("Using Base64 encoded credentials")
-            except Exception as e:
-                logger.error(f"Failed to decode Base64 credentials: {e}")
-        
-        if not cred_json and google_creds_json:
-            cred_json = google_creds_json
-            logger.info("Using JSON credentials")
-        
-        if not cred_json:
-            logger.error("No Google credentials found (neither Base64 nor JSON)")
+        if not google_creds_json:
+            logger.error("GOOGLE_SERVICE_ACCOUNT_JSON environment variable not set")
             return
             
         if not sheet_id:
@@ -80,47 +63,11 @@ def init_google_sheets():
         
         # Parse JSON credentials
         try:
-            cred_dict = json.loads(cred_json)
+            cred_dict = json.loads(google_creds_json)
             logger.info(f"Credentials type: {cred_dict.get('type', 'unknown')}")
             logger.info(f"Project ID: {cred_dict.get('project_id', 'unknown')}")
             
-            # Fix private key formatting
-            if 'private_key' in cred_dict:
-                private_key = cred_dict['private_key']
-                logger.info(f"Original private key length: {len(private_key)}")
-                logger.info(f"Private key starts with: {private_key[:50]}...")
-                
-                # Handle different newline encodings
-                if '\\n' in private_key:
-                    # Replace literal \n with actual newlines
-                    private_key = private_key.replace('\\n', '\n')
-                    logger.info("Replaced \\n with actual newlines")
-                
-                # Fix Base64 padding issues in private key content
-                lines = private_key.split('\n')
-                fixed_lines = []
-                for line in lines:
-                    if line and not line.startswith('-----'):
-                        # This is a Base64 content line, fix padding
-                        missing_padding = len(line) % 4
-                        if missing_padding:
-                            line += '=' * (4 - missing_padding)
-                            logger.info(f"Fixed padding for line: {line[:20]}...")
-                    fixed_lines.append(line)
-                
-                private_key = '\n'.join(fixed_lines)
-                
-                # Ensure proper formatting
-                if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-                    logger.error("Private key doesn't start with proper header")
-                if not private_key.endswith('-----END PRIVATE KEY-----\n'):
-                    if private_key.endswith('-----END PRIVATE KEY-----'):
-                        private_key += '\n'
-                    logger.info("Added missing trailing newline")
-                
-                cred_dict['private_key'] = private_key
-                logger.info(f"Final private key length: {len(private_key)}")
-                logger.info("Private key processing completed")
+            logger.info("Using credentials as-is without modification")
                 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse Google credentials JSON: {e}")

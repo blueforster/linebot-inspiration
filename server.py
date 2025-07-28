@@ -242,19 +242,25 @@ def handle_text_message(event):
 def convert_audio_to_text(audio_content, content_type='audio/m4a'):
     """Convert audio content to text using Google Speech-to-Text"""
     try:
-        # Initialize Speech client with same credentials as Sheets
-        speech_client = speech.SpeechClient.from_service_account_info(
-            get_google_credentials(),
+        # Initialize Speech client with credentials
+        cred_info = get_google_credentials()
+        if not cred_info:
+            raise Exception("Failed to get Google credentials")
+            
+        credentials = Credentials.from_service_account_info(
+            cred_info,
             scopes=['https://www.googleapis.com/auth/cloud-platform']
         )
         
-        # Configure audio settings
+        speech_client = speech.SpeechClient(credentials=credentials)
+        
+        # Configure audio settings - let Google detect format automatically
         audio = speech.RecognitionAudio(content=audio_content)
         config = speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.MP3 if 'mp3' in content_type else speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
-            sample_rate_hertz=16000,
+            encoding=speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
             language_code='zh-TW',  # Traditional Chinese
             alternative_language_codes=['en-US', 'ja-JP'],  # Fallback languages
+            enable_automatic_punctuation=True,
         )
         
         # Perform speech recognition

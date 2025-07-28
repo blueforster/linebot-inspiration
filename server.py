@@ -17,6 +17,7 @@ from google.oauth2.service_account import Credentials
 from google.cloud import speech
 import urllib.request
 import io
+from pydub import AudioSegment
 
 # Create Flask app
 app = Flask(__name__)
@@ -254,10 +255,32 @@ def convert_audio_to_text(audio_content, content_type='audio/m4a'):
         
         speech_client = speech.SpeechClient(credentials=credentials)
         
-        # Configure audio settings - let Google detect format automatically
-        audio = speech.RecognitionAudio(content=audio_content)
+        # Convert audio to WAV format for better compatibility
+        try:
+            # Load audio with pydub (supports M4A, MP3, etc.)
+            audio_segment = AudioSegment.from_file(io.BytesIO(audio_content), format="m4a")
+            
+            # Convert to WAV format with specific settings for Google Speech API
+            audio_segment = audio_segment.set_frame_rate(16000).set_channels(1)
+            
+            # Export to WAV format in memory
+            wav_buffer = io.BytesIO()
+            audio_segment.export(wav_buffer, format="wav")
+            wav_content = wav_buffer.getvalue()
+            
+            logger.info(f"Converted audio: {len(audio_content)} bytes -> {len(wav_content)} bytes WAV")
+            
+        except Exception as convert_error:
+            logger.error(f"Audio conversion failed: {convert_error}")
+            # Fallback: try to use original audio content
+            wav_content = audio_content
+        
+        # Configure audio settings for WAV format
+        audio = speech.RecognitionAudio(content=wav_content)
         config = speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
+            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+            sample_rate_hertz=16000,
+            audio_channel_count=1,
             language_code='zh-TW',  # Traditional Chinese
             alternative_language_codes=['en-US', 'ja-JP'],  # Fallback languages
             enable_automatic_punctuation=True,

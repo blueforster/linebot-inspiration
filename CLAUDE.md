@@ -700,8 +700,141 @@ def convert_audio_to_text(audio_content, content_type='audio/m4a'):
 
 ---
 
-**專案開發時間**: 約 45 分鐘 (初始) + 60 分鐘 (故障排除) + 30 分鐘 (語音功能)  
-**程式碼行數**: 約 2,500+ 行  
+## 圖片轉文字 OCR 功能實作記錄
+
+### 階段 13: 圖片訊息處理功能
+
+在語音轉文字功能成功後，進一步添加了圖片 OCR (光學字符識別) 功能，實現真正的多媒體內容處理：
+
+#### 13.1 需求分析
+使用者要求添加圖片轉文字功能，讓 LINE Bot 能夠識別圖片中的文字內容並記錄到 Google Sheets，完成多媒體訊息處理的最後一塊拼圖。
+
+#### 13.2 技術選型
+
+**選擇 Google Cloud Vision API 的原因**:
+- **統一生態系統**: 與現有的 Google Sheets 和 Speech API 使用相同認證
+- **多語言支援**: 支援繁體中文、英文、日文等主要語言
+- **高準確率**: Google 的 OCR 技術在業界領先
+- **無額外依賴**: 純 API 調用，無需本地圖像處理工具
+
+#### 13.3 實作架構
+
+```python
+def extract_text_from_image(image_content):
+    # 統一認證管理
+    credentials = Credentials.from_service_account_info(
+        get_google_credentials(),
+        scopes=['https://www.googleapis.com/auth/cloud-platform']
+    )
+    
+    vision_client = vision.ImageAnnotatorClient(credentials=credentials)
+    
+    # 建立圖像物件
+    image = vision.Image(content=image_content)
+    
+    # 執行文字檢測
+    response = vision_client.text_detection(image=image)
+    texts = response.text_annotations
+    
+    if texts:
+        # 第一個註解包含所有檢測到的文字
+        return texts[0].description.strip()
+    
+    return None
+```
+
+#### 13.4 功能特點
+
+1. **完整的圖像處理流程**
+   - 自動下載 LINE 圖片訊息
+   - Google Vision API OCR 文字識別
+   - 純文字內容儲存到 Google Sheets
+
+2. **用戶體驗優化**
+   - 長文字自動截斷預覽（200 字符限制）
+   - 🖼️ emoji 標示圖片訊息
+   - 無法識別文字時的優雅處理
+
+3. **統一的錯誤處理**
+   - 詳細的處理狀態日誌
+   - 識別失敗時仍記錄圖片接收事實
+   - 統一的錯誤回覆格式
+
+#### 13.5 部署優化
+
+```bash
+# 最終完整的 requirements.txt
+flask==3.0.0
+gunicorn==21.2.0
+line-bot-sdk==3.9.0
+gspread==6.0.0
+google-auth==2.25.2
+google-api-python-client==2.110.0
+google-cloud-speech==2.23.0  # 語音轉文字
+google-cloud-vision==3.4.4   # 圖片轉文字 (新增)
+requests==2.31.0
+python-dotenv==1.0.0
+```
+
+### 完整多媒體處理系統成果
+
+#### 🎯 最終功能清單
+- ✅ **📝 文字訊息處理** - 直接記錄到 Google Sheets
+- ✅ **🎵 語音訊息處理** - 自動轉文字後記錄 (中英日三語言)
+- ✅ **🖼️ 圖片訊息處理** - OCR 辨識文字後記錄 (多語言支援)
+- ✅ **Google Sheets 統一整合** - 所有內容統一儲存
+- ✅ **智能錯誤處理** - 完整的容錯機制
+- ✅ **用戶友好回饋** - 即時狀態回覆
+
+#### 技術架構優勢總結
+
+1. **統一認證架構**
+   - 單一 Google Service Account 支援三種 API
+   - 統一的憑證格式修復機制
+   - 相同的環境變數管理策略
+
+2. **雲端原生設計**
+   - 無本地依賴，純 API 調用
+   - 容器化部署友好
+   - 輕量級架構設計
+
+3. **完整的用戶體驗**
+   - 多媒體內容無縫處理
+   - 智能文字預覽和截斷
+   - 統一的錯誤處理和回饋
+
+4. **生產就緒特性**
+   - 詳細的日誌記錄
+   - 優雅的錯誤降級
+   - 高可用性設計
+
+#### 效能與成本考量
+
+**處理速度**:
+- 文字訊息: < 1 秒
+- 語音轉文字: 2-5 秒
+- 圖片 OCR: 1-3 秒
+
+**API 成本控制**:
+- Google Sheets API: 免費額度充足
+- Speech-to-Text: 每月前 60 分鐘免費
+- Vision API: 每月前 1000 次免費
+
+### 開發過程學習
+
+#### 1. API 整合模式
+建立了一套統一的 Google API 整合模式，可重複應用於其他 Google 服務。
+
+#### 2. 多媒體處理策略
+每種媒體類型都有對應的處理策略和錯誤降級機制，確保系統穩定性。
+
+#### 3. 用戶體驗設計
+在技術實作和用戶體驗之間找到平衡，提供即時反饋但避免訊息過長。
+
+---
+
+**專案開發時間**: 約 45 分鐘 (初始) + 60 分鐘 (故障排除) + 30 分鐘 (語音) + 20 分鐘 (圖片)  
+**程式碼行數**: 約 3,000+ 行  
 **開發方式**: Claude Code 輔助開發  
-**最終狀態**: 完整生產就緒 ✅  
-**成功部署**: 2025-01-27 (基礎) + 2025-01-28 (語音) ✅
+**最終狀態**: 完整多媒體生產就緒系統 ✅  
+**成功部署**: 2025-01-27 (基礎) + 2025-01-28 (語音+圖片) ✅

@@ -11,10 +11,11 @@ from datetime import datetime
 from flask import Flask, jsonify, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, AudioMessage, TextSendMessage
+from linebot.models import MessageEvent, TextMessage, AudioMessage, ImageMessage, TextSendMessage
 import gspread
 from google.oauth2.service_account import Credentials
 from google.cloud import speech
+from google.cloud import vision
 import urllib.request
 import io
 
@@ -42,6 +43,7 @@ def init_line_bot():
             # Add message handlers
             handler.add(MessageEvent, message=TextMessage)(handle_text_message)
             handler.add(MessageEvent, message=AudioMessage)(handle_audio_message)
+            handler.add(MessageEvent, message=ImageMessage)(handle_image_message)
             logger.info("LINE Bot initialized successfully")
         else:
             logger.warning("LINE Bot credentials not found")
@@ -396,6 +398,102 @@ def handle_audio_message(event):
                 )
             except Exception as e2:
                 logger.error(f"Failed to send audio error reply: {e2}")
+
+def extract_text_from_image(image_content):
+    """Extract text from image using Google Cloud Vision API"""
+    try:
+        # Initialize Vision client with credentials
+        cred_info = get_google_credentials()
+        if not cred_info:
+            raise Exception("Failed to get Google credentials")
+            
+        credentials = Credentials.from_service_account_info(
+            cred_info,
+            scopes=['https://www.googleapis.com/auth/cloud-platform']
+        )
+        
+        vision_client = vision.ImageAnnotatorClient(credentials=credentials)
+        
+        logger.info(f"Processing image: {len(image_content)} bytes")
+        
+        # Create image object
+        image = vision.Image(content=image_content)
+        
+        # Perform text detection
+        response = vision_client.text_detection(image=image)
+        texts = response.text_annotations
+        
+        if response.error.message:
+            raise Exception(f"Vision API error: {response.error.message}")
+        
+        if texts:
+            # First annotation contains all detected text
+            detected_text = texts[0].description
+            logger.info(f"OCR result: {len(detected_text)} characters detected")
+            logger.info(f"Text preview: {detected_text[:100]}...")
+            return detected_text.strip()
+        else:
+            logger.info("No text detected in image")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Image text extraction failed: {e}")
+        return None
+
+def handle_image_message(event):
+    try:
+        user_id = event.source.user_id
+        message_id = event.message.id
+        
+        logger.info(f"Received image message from {user_id}: {message_id}")
+        
+        # Download image content from LINE
+        if line_bot_api:
+            message_content = line_bot_api.get_message_content(message_id)
+            image_data = b''
+            for chunk in message_content.iter_content():
+                image_data += chunk
+            
+            logger.info(f"Downloaded image file, size: {len(image_data)} bytes")
+            
+            # Extract text from image
+            extracted_text = extract_text_from_image(image_data)
+            
+            if extracted_text:
+                # Add extracted text to Google Sheets
+                success = add_message_to_sheet(user_id, 'image', extracted_text)
+                
+                if success:
+                    reply_text = f"🖼️ 圖片文字已辨識並記錄：\n「{extracted_text[:200]}{'...' if len(extracted_text) > 200 else ''}」"
+                else:
+                    reply_text = f"🖼️ 圖片文字辨識完成：\n「{extracted_text[:200]}{'...' if len(extracted_text) > 200 else ''}」\n(記錄到 Google Sheets 失敗)"
+            else:
+                # Still record that an image was received
+                add_message_to_sheet(user_id, 'image', "[圖片訊息 - 無法辨識文字]")
+                reply_text = "🖼️ 收到圖片，但未能辨識出文字內容"
+            
+            # Send reply
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=reply_text)
+            )
+            logger.info("Image message processed and reply sent")
+        else:
+            logger.error("LINE Bot API not initialized for image processing")
+            
+    except Exception as e:
+        logger.error(f"Error handling image message: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        
+        if line_bot_api:
+            try:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="處理圖片訊息時發生錯誤，請稍後再試")
+                )
+            except Exception as e2:
+                logger.error(f"Failed to send image error reply: {e2}")
 
 # Initialize services when module is loaded
 init_line_bot()

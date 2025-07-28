@@ -6,7 +6,10 @@
 
 ### 📝 多媒體記錄
 - **文字訊息**：直接記錄您的靈感和想法
-- **語音訊息**：自動轉換為文字並記錄（支援中文、英文）
+- **🎵 語音訊息**：自動轉換為文字並記錄
+  - 支援繁體中文、英文、日文多語言識別
+  - 自動標點符號添加
+  - 智能音訊格式處理（M4A、MP3、WEBM等）
 - **圖片訊息**：記錄圖片類型的靈感內容
 - **標籤系統**：使用 `#標籤` 語法自動分類和組織
 
@@ -72,16 +75,13 @@ LINE_CHANNEL_ACCESS_TOKEN=your_channel_access_token_here
 LINE_CHANNEL_SECRET=your_channel_secret_here
 
 # Google Sheets 設定
-GOOGLE_SERVICE_ACCOUNT_KEY_PATH=config/google-credentials.json
 GOOGLE_SHEET_ID=your_google_sheet_id_here
+GOOGLE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...your_private_key...\n-----END PRIVATE KEY-----
 
 # Flask 設定
 PORT=5000
 FLASK_ENV=development
 FLASK_DEBUG=True
-
-# Google Cloud Project (語音轉文字功能)
-GOOGLE_CLOUD_PROJECT=your_project_id
 ```
 
 ### 5. Google 服務設定
@@ -112,9 +112,10 @@ GOOGLE_CLOUD_PROJECT=your_project_id
    - 搜尋「Google Drive API」
    - 點擊結果並「啟用」
 
-   **Google Cloud Speech-to-Text API（可選）**：
+   **Google Cloud Speech-to-Text API（語音轉文字功能）**：
    - 搜尋「Cloud Speech-to-Text API」
    - 點擊結果並「啟用」
+   - ⚠️ 此 API 為付費服務，但有免費額度
 
 **步驟 3: 建立 Service Account**
 
@@ -418,10 +419,18 @@ git push heroku main
 今天的會議很有收穫 #工作 #會議 #想法
 ```
 
-#### 語音轉文字
-- 支援中文（繁體、簡體）和英文
-- 自動標點符號
-- 信心度顯示
+#### 🎵 語音轉文字功能
+- **多語言支援**：繁體中文、英文、日文
+- **智能音訊處理**：自動處理 M4A、MP3、WEBM 等格式
+- **自動標點符號**：提升文字可讀性
+- **容錯處理**：多重編碼嘗試確保成功率
+- **純淨儲存**：Google Sheets 中只儲存轉文字結果，無額外前綴
+
+**使用方式**：
+1. 在 LINE 中長按錄音按鈕
+2. 錄製您的語音內容
+3. 發送後會自動轉為文字並儲存到 Google Sheets
+4. Bot 會回覆轉文字結果供確認
 
 ## 📊 資料結構
 
@@ -442,38 +451,25 @@ git push heroku main
 
 ```
 linebot1/
-├── app/
-│   ├── __init__.py
-│   ├── routes/
-│   │   ├── __init__.py
-│   │   └── webhook.py          # Webhook 處理
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── line_service.py     # LINE Bot 服務
-│   │   ├── sheets_service.py   # Google Sheets 服務
-│   │   └── speech_service.py   # 語音轉文字服務
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   ├── logger.py           # 日誌設定
-│   │   └── helpers.py          # 工具函數
-│   └── models/
-│       ├── __init__.py
-│       └── message_model.py    # 訊息資料模型
-├── config/
-│   ├── __init__.py
-│   ├── settings.py             # 設定檔
-│   └── google-credentials.json # Google 服務帳號金鑰
-├── tests/
-│   ├── __init__.py
-│   └── test_webhook.py         # 測試檔案
-├── .env.example                # 環境變數範例
+├── server.py                   # 主程式檔案（所有功能整合）
 ├── requirements.txt            # Python 依賴
-├── app.py                      # 主程式入口
-├── wsgi.py                     # WSGI 設定
-├── zeabur.json                 # Zeabur 部署設定
-├── Procfile                    # Heroku 部署設定
-└── README.md                   # 說明文件
+├── wsgi.py                    # WSGI 部署入口
+├── zeabur.json                # Zeabur 部署設定
+├── Procfile                   # 處理程序定義
+├── .env.example               # 環境變數範例
+├── CLAUDE.md                  # 開發記錄文件
+├── README.md                  # 專案說明文件
+└── config/                    # 設定檔案目錄
+    └── linebot-note-01-xxx.json # Google Service Account 憑證（本機開發用）
 ```
+
+### 核心技術架構
+
+#### 簡化設計理念
+- **單檔案架構**：所有功能整合在 `server.py` 中，便於維護和部署
+- **統一認證**：Google Sheets 和 Speech-to-Text 使用相同的 Service Account
+- **容錯設計**：多重備援策略和自動格式修復
+- **雲端就緒**：無外部系統依賴，適合容器化部署
 
 ### 核心類別
 

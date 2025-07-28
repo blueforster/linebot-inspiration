@@ -362,8 +362,8 @@ def handle_audio_message(event):
             transcript = convert_audio_to_text(audio_data, 'audio/m4a')
             
             if transcript:
-                # Add transcribed text to Google Sheets
-                success = add_message_to_sheet(user_id, 'audio', f"🎵 語音轉文字: {transcript}")
+                # Add transcribed text to Google Sheets (clean text without prefix)
+                success = add_message_to_sheet(user_id, 'audio', transcript)
                 
                 if success:
                     reply_text = f"🎵 語音已轉文字並記錄：\n「{transcript}」"
@@ -371,7 +371,7 @@ def handle_audio_message(event):
                     reply_text = f"🎵 語音轉文字完成：\n「{transcript}」\n(記錄到 Google Sheets 失敗)"
             else:
                 # Still record that an audio message was received
-                add_message_to_sheet(user_id, 'audio', "🎵 語音訊息 (轉文字失敗)")
+                add_message_to_sheet(user_id, 'audio', "[語音訊息 - 轉文字失敗]")
                 reply_text = "🎵 收到語音訊息，但轉文字失敗，請重新錄製清楚一點的語音"
             
             # Send reply

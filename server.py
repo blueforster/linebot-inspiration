@@ -17,7 +17,6 @@ from google.oauth2.service_account import Credentials
 from google.cloud import speech
 import urllib.request
 import io
-from pydub import AudioSegment
 
 # Create Flask app
 app = Flask(__name__)
@@ -255,48 +254,56 @@ def convert_audio_to_text(audio_content, content_type='audio/m4a'):
         
         speech_client = speech.SpeechClient(credentials=credentials)
         
-        # Convert audio to WAV format for better compatibility
-        try:
-            # Load audio with pydub (supports M4A, MP3, etc.)
-            audio_segment = AudioSegment.from_file(io.BytesIO(audio_content), format="m4a")
-            
-            # Convert to WAV format with specific settings for Google Speech API
-            audio_segment = audio_segment.set_frame_rate(16000).set_channels(1)
-            
-            # Export to WAV format in memory
-            wav_buffer = io.BytesIO()
-            audio_segment.export(wav_buffer, format="wav")
-            wav_content = wav_buffer.getvalue()
-            
-            logger.info(f"Converted audio: {len(audio_content)} bytes -> {len(wav_content)} bytes WAV")
-            
-        except Exception as convert_error:
-            logger.error(f"Audio conversion failed: {convert_error}")
-            # Fallback: try to use original audio content
-            wav_content = audio_content
+        logger.info(f"Processing audio: {len(audio_content)} bytes")
         
-        # Configure audio settings for WAV format
-        audio = speech.RecognitionAudio(content=wav_content)
-        config = speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-            sample_rate_hertz=16000,
-            audio_channel_count=1,
-            language_code='zh-TW',  # Traditional Chinese
-            alternative_language_codes=['en-US', 'ja-JP'],  # Fallback languages
-            enable_automatic_punctuation=True,
-        )
+        # Try multiple encoding configurations for LINE audio
+        encoding_configs = [
+            # Configuration 1: Try MP4/M4A format
+            {
+                'encoding': speech.RecognitionConfig.AudioEncoding.MP3,
+                'description': 'MP3 encoding'
+            },
+            # Configuration 2: Try WEBM_OPUS (common for mobile)
+            {
+                'encoding': speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
+                'description': 'WEBM_OPUS encoding'
+            },
+            # Configuration 3: Let Google auto-detect
+            {
+                'encoding': speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
+                'description': 'Auto-detect encoding'
+            }
+        ]
         
-        # Perform speech recognition
-        response = speech_client.recognize(config=config, audio=audio)
+        for config_attempt in encoding_configs:
+            try:
+                logger.info(f"Trying {config_attempt['description']}")
+                
+                audio = speech.RecognitionAudio(content=audio_content)
+                config = speech.RecognitionConfig(
+                    encoding=config_attempt['encoding'],
+                    language_code='zh-TW',  # Traditional Chinese
+                    alternative_language_codes=['en-US', 'ja-JP'],  # Fallback languages
+                    enable_automatic_punctuation=True,
+                )
+                
+                # Perform speech recognition
+                response = speech_client.recognize(config=config, audio=audio)
+                
+                if response.results:
+                    transcript = response.results[0].alternatives[0].transcript
+                    confidence = response.results[0].alternatives[0].confidence
+                    logger.info(f"SUCCESS with {config_attempt['description']}: {transcript} (confidence: {confidence:.2f})")
+                    return transcript
+                else:
+                    logger.info(f"{config_attempt['description']}: No results")
+                    
+            except Exception as config_error:
+                logger.warning(f"{config_attempt['description']} failed: {config_error}")
+                continue
         
-        if response.results:
-            transcript = response.results[0].alternatives[0].transcript
-            confidence = response.results[0].alternatives[0].confidence
-            logger.info(f"Speech recognition result: {transcript} (confidence: {confidence:.2f})")
-            return transcript
-        else:
-            logger.warning("No speech recognition results")
-            return None
+        logger.warning("All encoding configurations failed")
+        return None
             
     except Exception as e:
         logger.error(f"Speech-to-text conversion failed: {e}")

@@ -7,4 +7,3 @@ google-api-python-client==2.110.0
 google-cloud-speech==2.23.0
 requests==2.31.0
 python-dotenv==1.0.0
-pydub==0.25.1
